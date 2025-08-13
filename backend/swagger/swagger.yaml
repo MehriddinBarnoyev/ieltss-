@@ -1,0 +1,360 @@
+openapi: 3.0.0
+info:
+  title: Quiz App API
+  version: 1.0.0
+  description: API for a quiz application
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a new admin
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name: { type: string }
+                email: { type: string }
+                password: { type: string }
+                role: { type: string, enum: [admin, user] }
+      responses:
+        '201': { description: Admin registered }
+        '500': { description: Server error }
+  /api/auth/login:
+    post:
+      summary: Login
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200': { description: Login successful, returns JWT }
+        '401': { description: Invalid credentials }
+  /api/admin/tests:
+    post:
+      summary: Create a test with multiple questions
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                questions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      question_text: { type: string }
+                      correct_option: { type: string, enum: [A, B, C, D] }
+                      options:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            label: { type: string, enum: [A, B, C, D] }
+                            text: { type: string }
+                        minItems: 4
+                        maxItems: 4
+                      media:
+                        type: object
+                        properties:
+                          type: { type: string, enum: [image, audio] }
+                          url: { type: string }
+      responses:
+        '201':
+          description: Test created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  testId: { type: string }
+                  questionIds: { type: array, items: { type: string } }
+        '400': { description: Invalid input }
+        '500': { description: Server error }
+  /api/admin/tests/{id}:
+    put:
+      summary: Edit a test
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                questions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      question_text: { type: string }
+                      correct_option: { type: string, enum: [A, B, C, D] }
+                      options:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            label: { type: string, enum: [A, B, C, D] }
+                            text: { type: string }
+                        minItems: 4
+                        maxItems: 4
+                      media:
+                        type: object
+                        properties:
+                          type: { type: string, enum: [image, audio] }
+                          url: { type: string }
+      responses:
+        '200': { description: Test updated }
+        '403': { description: Unauthorized }
+        '500': { description: Server error }
+    delete:
+      summary: Delete a test
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Test deleted }
+        '403': { description: Unauthorized }
+        '500': { description: Server error }
+  /api/admin/tests/{id}/results:
+    get:
+      summary: Get test results
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: List of results }
+        '403': { description: Unauthorized }
+        '500': { description: Server error }
+  /api/admin/tests/{id}/feedback:
+    get:
+      summary: Get test feedback
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: List of feedback }
+        '403': { description: Unauthorized }
+        '500': { description: Server error }
+  /api/tests/start:
+    post:
+      summary: Start a test with a randomly selected test ID
+      tags: [User]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - full_name
+                - email
+              properties:
+                full_name:
+                  type: string
+                  example: John Doe
+                  description: The full name of the user
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                  description: The email address of the user
+      responses:
+        '200':
+          description: Test started, returns user info, randomly selected test ID, questions, and answers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: 550e8400-e29b-41d4-a716-446655440000
+                      full_name:
+                        type: string
+                        example: John Doe
+                      email:
+                        type: string
+                        example: john@example.com
+                      role:
+                        type: string
+                        example: user
+                  testId:
+                    type: string
+                    example: 123e4567-e89b-12d3-a456-426614174000
+                    description: The randomly selected test ID
+                  questions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 987fcdeb-3c2d-4e5f-8c9a-123456789abc
+                        test_id:
+                          type: string
+                          example: 123e4567-e89b-12d3-a456-426614174000
+                        question_text:
+                          type: string
+                          example: What is the primary purpose of the passage about renewable energy?
+                        correct_option:
+                          type: string
+                          example: C
+                        media_type:
+                          type: string
+                          nullable: true
+                          example: null
+                        media_url:
+                          type: string
+                          nullable: true
+                          example: null
+                  answers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        question_id:
+                          type: string
+                          example: 987fcdeb-3c2d-4e5f-8c9a-123456789abc
+                        options:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                example: 456e7890-f12b-34d5-a678-901234567def
+                              question_id:
+                                type: string
+                                example: 987fcdeb-3c2d-4e5f-8c9a-123456789abc
+                              option_label:
+                                type: string
+                                example: A
+                              option_text:
+                                type: string
+                                example: To argue against the use of fossil fuels
+        '400':
+          description: Missing required fields (full_name or email)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Full name and email are required
+        '404':
+          description: No tests available in the database
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: No tests available
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Error starting test
+                  error:
+                    type: object
+  /api/tests/{id}/submit:
+    post:
+      summary: Submit test answers
+      tags: [User]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id: { type: string }
+                answers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      question_id: { type: string }
+                      selected_option: { type: string, enum: [A, B, C, D] }
+      responses:
+        '200': { description: Submission successful, returns score and attemptId }
+        '500': { description: Server error }
+  /api/tests/{id}/feedback:
+    post:
+      summary: Submit feedback for a test
+      tags: [User]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                attempt_id: { type: string }
+                feedback_text: { type: string }
+      responses:
+        '201': { description: Feedback submitted }
+        '400': { description: Invalid attempt }
+        '500': { description: Server error }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
