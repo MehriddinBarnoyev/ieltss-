@@ -2,61 +2,61 @@
 
 const pool = require('../config/db');
 
+// controllers/userController.js
+
+
 const startTest = async (req, res) => {
   const { full_name, email } = req.body;
-  try {
-    // Validate required fields
-    if (!full_name || !email) {
-      return res.status(400).json({ message: 'Full name and email are required' });
-    }
 
-    // Check if user exists, create if not
-    let user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (!user.rows[0]) {
-      user = await pool.query(
+  if (!full_name || !email) {
+    return res.status(400).json({ message: 'Full name and email are required' });
+  }
+
+  try {
+    // Userni olish yoki yaratish
+    let user = (await pool.query('SELECT * FROM users WHERE email = $1', [email])).rows[0];
+    if (!user) {
+      user = (await pool.query(
         'INSERT INTO users (full_name, email, role) VALUES ($1, $2, $3) RETURNING *',
         [full_name, email, 'user']
-      );
+      )).rows[0];
     }
 
-    // Fetch all test IDs
-    const testResult = await pool.query('SELECT id FROM tests');
-    const testIds = testResult.rows.map(row => row.id);
+    // Random test ID tanlash
+    const test = (await pool.query('SELECT id FROM tests ORDER BY RANDOM() LIMIT 1')).rows[0];
+    if (!test) return res.status(404).json({ message: 'No tests available' });
 
-    // Check if any tests exist
-    if (testIds.length === 0) {
-      return res.status(404).json({ message: 'No tests available' });
-    }
+    // Test savollari va javoblarni bitta query bilan olish
+    const questionsWithAnswers = (await pool.query(`
+     SELECT 
+        q.id AS question_id,
+        q.question_text,
+        q.correct_option,
+        json_agg(
+          json_build_object(
+            'id', a.id,
+            'option_label', a.option_label,
+            'option_text', a.option_text
+          )
+        ) AS options
+      FROM questions q
+      LEFT JOIN answers a ON q.id = a.question_id
+      WHERE q.test_id = $1
+      GROUP BY q.id
+    `, [test.id])).rows;
 
-    // Randomly select one test ID
-    const randomIndex = Math.floor(Math.random() * testIds.length);
-    const selectedTestId = testIds[randomIndex];
+    res.json({
+      user,
+      testId: test.id,
+      questions: questionsWithAnswers
+    });
 
-    // Fetch all questions for the randomly selected test
-    const questions = await pool.query(
-      'SELECT q.*, m.media_type, m.media_url FROM questions q LEFT JOIN question_media m ON q.id = m.question_id WHERE q.test_id = $1',
-      [selectedTestId]
-    );
-
-    // Fetch all answers for the questions
-    const answersResult = await pool.query(
-      'SELECT * FROM answers WHERE question_id IN (SELECT id FROM questions WHERE test_id = $1)',
-      [selectedTestId]
-    );
-
-    // Group answers by question_id for easier frontend handling
-    const answers = questions.rows.map(q => ({
-      question_id: q.id,
-      options: answersResult.rows.filter(a => a.question_id === q.id)
-    }));
-
-    // Return the user, selected test ID, questions, and answers
-    res.json({ user: user.rows[0], testId: selectedTestId, questions: questions.rows, answers });
   } catch (error) {
     console.error('Error starting test:', error);
     res.status(500).json({ message: 'Error starting test', error });
   }
 };
+
 
 const submitTest = async (req, res) => {
   const { user_id, answers } = req.body;

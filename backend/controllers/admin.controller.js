@@ -1,6 +1,5 @@
-// controllers/adminController.js (updated for new schema with tests table and UUIDs)
-
 const pool = require('../config/db');
+
 
 const createTest = async (req, res) => {
   const { name, description, questions } = req.body;
@@ -194,4 +193,27 @@ const getTestFeedback = async (req, res) => {
   }
 };
 
-module.exports = { createTest, editTest, deleteTest, getTestResults, getTestFeedback };
+const getAllResults = async (req, res) =>{
+  try {
+    const results = await pool.query(
+      `SELECT 
+        a.id AS attempt_id, 
+        a.score, 
+        a.total_questions, 
+        a.percentage, 
+        a.created_at AS attempt_date,
+        u.id AS user_id,
+        u.full_name,
+        u.email,
+        t.name AS test_name
+      FROM attempts a
+      JOIN users u ON a.user_id = u.id
+      JOIN tests t ON a.test_id = t.id`
+    );
+    res.json(results.rows);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching all results', error });
+  }
+}
+
+module.exports = { createTest, editTest, deleteTest, getTestResults, getTestFeedback, getAllResults };
